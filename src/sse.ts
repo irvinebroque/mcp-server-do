@@ -1,14 +1,8 @@
 import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { JSONRPCMessage, JSONRPCMessageSchema } from "@modelcontextprotocol/sdk/types.js";
-import getRawBody from "raw-body";
-import contentType from "content-type";
-
-const MAXIMUM_MESSAGE_SIZE = "4mb";
 
 /**
  * Server transport for SSE: this will send messages over an SSE connection and receive messages from HTTP POST requests.
- *
- * This transport works in both Node.js and Cloudflare Workers environments.
  */
 export class SSEServerTransport implements Transport {
   private _sseResponse?: Response;
@@ -49,11 +43,11 @@ export class SSEServerTransport implements Transport {
    * Use getResponse() to get the Response object for the client.
    */
   async start(): Promise<void> {
-    if (this._connected) {
-      throw new Error(
-        "SSEServerTransport already started! If using Server class, note that connect() calls start() automatically.",
-      );
-    }
+    // if (this._connected) {
+    //   throw new Error(
+    //     "SSEServerTransport already started! If using Server class, note that connect() calls start() automatically.",
+    //   );
+    // }
 
     // Create headers for SSE
     const headers = new Headers({
@@ -118,9 +112,6 @@ export class SSEServerTransport implements Transport {
     }
   }
 
-  /**
-   * Handle a client message, regardless of how it arrived. This can be used to inform the server of messages that arrive via a means different than HTTP POST.
-   */
   async handleMessage(message: unknown): Promise<void> {
     let parsedMessage: JSONRPCMessage;
     try {
@@ -167,8 +158,6 @@ export class SSEServerTransport implements Transport {
 
   /**
    * Returns the session ID for this transport.
-   *
-   * This can be used to route incoming POST requests.
    */
   get sessionId(): string {
     return this._sessionId;

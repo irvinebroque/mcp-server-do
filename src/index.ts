@@ -37,11 +37,15 @@ export class MyMcpServerDurableObject extends DurableObject<Env> {
 		this.transport = new SSEServerTransport('/mcp-message');
 	}
 
-	async sse(request: Request): Promise<void> {
+	async sse(request: Request): Promise<Response> {
+		console.log('Handling SSE request');
 		await this.server.connect(this.transport);
+		await this.transport.start();
+		return this.transport.getResponse();
 	}
 
 	async messages(request: Request): Promise<Response> {
+		console.log('Handling message request');
 		return this.transport.handlePostMessage(request);
 	}
 }

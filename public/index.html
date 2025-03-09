@@ -215,6 +215,7 @@
         }
 
         function addMessage(type, content, isJson = false) {
+            console.log('Adding message:', type, content, isJson);
             const messageElement = document.createElement('div');
             messageElement.className = `message ${type}`;
             
@@ -250,7 +251,7 @@
                 updateConnectionStatus('Connecting', 'Connecting to SSE server...');
                 
                 // Create a new SSE connection
-                const response = await fetch('/create-sse');
+                const response = await fetch('/sse/38ujiflsiljjli');
                 if (!response.ok) {
                     throw new Error(`Failed to create SSE connection: ${response.status} ${response.statusText}`);
                 }
