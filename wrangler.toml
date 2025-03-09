@@ -1,0 +1,12 @@
+name = "mcp-server-do"
+main = "src/worker.ts"
+compatibility_date = "2023-10-30"
+
+[durable_objects]
+bindings = [
+  { name = "SSE_CONNECTION", class_name = "SSEConnection" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["SSEConnection"] 
