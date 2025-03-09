@@ -52,49 +52,27 @@ export default {
 	  const url = new URL(request.url);
 	  const path = url.pathname;
 	  
-	  // Handle SSE connections and messages through the Durable Object
+	  // /sse/{connectionId}
 	  if (path.startsWith('/sse/')) {
-		// Extract the connection ID from the URL
-		// Format: /sse/{connectionId}/{action}
 		const parts = path.split('/').filter(Boolean);
-		
-		if (parts.length < 3) {
-		  return new Response('Invalid SSE URL format', { status: 400 });
-		}
-		
 		const connectionId = parts[1];
 		
-		// Get the Durable Object for this connection
-		const sseObject = env.MCP_DO.get(
-		  env.MCP_DO.idFromName(connectionId)
-		);
+		const id = env.MCP_DO.idFromName(connectionId);
+		const mcpServer = env.MCP_DO.get(id);
 		
 		// Forward the request to the Durable Object
-		return sseObject.fetch(request);
+		return mcpServer.sse(request);
 	  }
-	  
-	  // Example: Create a new SSE connection
-	  if (path === '/create-sse') {
-		// Generate a unique connection ID
-		const connectionId = crypto.randomUUID();
-		
-		// Redirect to the SSE connection URL
-		const sseUrl = new URL(url);
-		sseUrl.pathname = `/sse/${connectionId}/connect`;
-		
-		return new Response(JSON.stringify({
-		  connectionId,
-		  sseUrl: sseUrl.toString(),
-		  messageUrl: `${url.origin}/sse/${connectionId}/message`,
-		  sendUrl: `${url.origin}/sse/${connectionId}/send`
-		}), {
-		  headers: {
-			'Content-Type': 'application/json'
-		  }
-		});
+
+	  // /mcp-message/{connectionId}
+	  if (path.startsWith('/mcp-message')) {
+		const parts = path.split('/').filter(Boolean);
+		const connectionId = parts[1];
+		const id = env.MCP_DO.idFromName(connectionId);
+		const mcpServer = env.MCP_DO.get(id);
+		return mcpServer.messages(request);
 	  }
-	  
-	  // Default response for other routes
+
 	  return new Response('Welcome to the SSE API. Use /create-sse to create a new SSE connection.', {
 		headers: {
 		  'Content-Type': 'text/plain'
