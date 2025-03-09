@@ -8,11 +8,14 @@ const MAXIMUM_MESSAGE_SIZE = "4mb";
 /**
  * Server transport for SSE: this will send messages over an SSE connection and receive messages from HTTP POST requests.
  *
- * This transport is only available in Node.js environments.
+ * This transport works in both Node.js and Cloudflare Workers environments.
  */
 export class SSEServerTransport implements Transport {
   private _sseResponse?: Response;
   private _sessionId: string;
+  private _controller: ReadableStreamDefaultController<Uint8Array> | null = null;
+  private _stream: ReadableStream<Uint8Array>;
+  private _connected: boolean = false;
 
   onclose?: () => void;
   onerror?: (error: Error) => void;
@@ -25,36 +28,59 @@ export class SSEServerTransport implements Transport {
     private _endpoint: string,
   ) {
     this._sessionId = crypto.randomUUID();
+    
+    // Create a readable stream for SSE
+    this._stream = new ReadableStream({
+      start: (controller) => {
+        this._controller = controller;
+      },
+      cancel: () => {
+        this._controller = null;
+        this._connected = false;
+        this.onclose?.();
+      }
+    });
   }
 
   /**
    * Handles the initial SSE connection request.
-   *
-   * This should be called when a GET request is made to establish the SSE stream.
+   * 
+   * This method prepares the SSE connection but doesn't return the Response directly.
+   * Use getResponse() to get the Response object for the client.
    */
-  async start(request: Request): Promise<void> {
-    if (this._sseResponse) {
+  async start(): Promise<void> {
+    if (this._connected) {
       throw new Error(
         "SSEServerTransport already started! If using Server class, note that connect() calls start() automatically.",
       );
     }
 
-    this.res.writeHead(200, {
+    // Create headers for SSE
+    const headers = new Headers({
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      Connection: "keep-alive",
+      "Connection": "keep-alive",
     });
+
+    // Create the response with the stream
+    this._sseResponse = new Response(this._stream, { headers });
+    this._connected = true;
 
     // Send the endpoint event
-    this.res.write(
-      `event: endpoint\ndata: ${encodeURI(this._endpoint)}?sessionId=${this._sessionId}\n\n`,
+    this._writeToStream(
+      `event: endpoint\ndata: ${encodeURI(this._endpoint)}?sessionId=${this._sessionId}\n\n`
     );
-
-    this._sseResponse = this.res;
-    this.res.on("close", () => {
-      this._sseResponse = undefined;
-      this.onclose?.();
-    });
+  }
+  
+  /**
+   * Returns the Response object for the SSE connection.
+   * This should be called after start() to get the Response to return to the client.
+   */
+  getResponse(): Response {
+    if (!this._sseResponse) {
+      throw new Error("SSE connection not started. Call start() first.");
+    }
+    return this._sseResponse;
   }
 
   /**
@@ -65,33 +91,31 @@ export class SSEServerTransport implements Transport {
   async handlePostMessage(
     request: Request,
   ): Promise<Response> {
-    if (!this._sseResponse) {
+    if (!this._connected) {
       const message = "SSE connection not established";
-      throw new Error(message);
+      return new Response(message, { status: 500 });
     }
 
-    let body: string | unknown;
     try {
-      const ct = contentType.parse(request.headers.get("content-type") ?? "");
-      if (ct.type !== "application/json") {
-        throw new Error(`Unsupported content-type: ${ct}`);
+      // Check content type
+      const contentType = request.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error(`Unsupported content-type: ${contentType}`);
       }
 
-      body = await getRawBody(request, {
-        limit: MAXIMUM_MESSAGE_SIZE,
-        encoding: ct.parameters.charset ?? "utf-8",
-      });
+      // Parse the request body
+      const body = await request.json();
+      
+      // Handle the message
+      await this.handleMessage(body);
+      
+      // Return a success response
+      return new Response("Accepted", { status: 202 });
     } catch (error) {
-      return new Response(String(error), { status: 400 });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.onerror?.(error instanceof Error ? error : new Error(errorMessage));
+      return new Response(errorMessage, { status: 400 });
     }
-
-    try {
-      await this.handleMessage(typeof body === 'string' ? JSON.parse(body) : body);
-    } catch {
-      return new Response(`Invalid message: ${body}`, { status: 400 });
-    }
-
-    return new Response("Accepted", { status: 202 });
   }
 
   /**
@@ -110,19 +134,35 @@ export class SSEServerTransport implements Transport {
   }
 
   async close(): Promise<void> {
-    this._sseResponse?.close();
+    if (this._controller) {
+      this._controller.close();
+      this._controller = null;
+    }
+    this._connected = false;
     this._sseResponse = undefined;
     this.onclose?.();
   }
 
   async send(message: JSONRPCMessage): Promise<void> {
-    if (!this._sseResponse) {
+    if (!this._connected || !this._controller) {
       throw new Error("Not connected");
     }
 
-    this._sseResponse.write(
-      `event: message\ndata: ${JSON.stringify(message)}\n\n`,
+    this._writeToStream(
+      `event: message\ndata: ${JSON.stringify(message)}\n\n`
     );
+  }
+
+  /**
+   * Helper method to write data to the stream.
+   */
+  private _writeToStream(data: string): void {
+    if (!this._controller) {
+      throw new Error("Stream controller not initialized");
+    }
+    
+    const encoder = new TextEncoder();
+    this._controller.enqueue(encoder.encode(data));
   }
 
   /**

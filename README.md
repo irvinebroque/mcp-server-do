@@ -5,7 +5,7 @@ This project implements a Model Context Protocol (MCP) server using Cloudflare W
 ## Features
 
 - Server-Sent Events (SSE) implementation for Cloudflare Workers
-- Durable Objects for maintaining connection state
+- ReadableStream-based SSE transport compatible with Cloudflare Workers
 - JSON-RPC message handling
 
 ## Getting Started
@@ -49,76 +49,74 @@ npm run deploy
 
 ## Usage
 
-### Creating an SSE Connection
+### Using the SSEServerTransport in Cloudflare Workers
 
-To create a new SSE connection, make a GET request to the `/create-sse` endpoint:
+The `SSEServerTransport` class has been updated to use `ReadableStream` instead of Node.js-specific response methods, making it compatible with Cloudflare Workers.
 
+Here's how to use it in a Cloudflare Worker:
+
+```typescript
+import { SSEServerTransport } from './sse';
+
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    
+    // Handle SSE connection
+    if (path === '/sse' && request.method === 'GET') {
+      // Create a new SSE transport
+      const transport = new SSEServerTransport('/message');
+      
+      // Set up event handlers
+      transport.onclose = () => {
+        console.log('SSE connection closed');
+      };
+      
+      transport.onerror = (error) => {
+        console.error('SSE error:', error);
+      };
+      
+      transport.onmessage = (message) => {
+        console.log('Received message:', message);
+        transport.send(message).catch(console.error);
+      };
+      
+      // Start the SSE connection
+      await transport.start();
+      
+      // Return the SSE response
+      return transport.getResponse();
+    }
+    
+    // Handle client messages
+    if (path === '/message' && request.method === 'POST') {
+      // Extract the session ID from the query parameters
+      const sessionId = url.searchParams.get('sessionId');
+      if (!sessionId) {
+        return new Response('Missing sessionId', { status: 400 });
+      }
+      
+      // In a real application, you would need to retrieve the transport
+      // instance based on the session ID
+      
+      // Handle the message
+      return transport.handlePostMessage(request);
+    }
+    
+    // Default response for other routes
+    return new Response('Not found', { status: 404 });
+  },
+};
 ```
-GET /create-sse
-```
 
-This will return a JSON response with the connection details:
-
-```json
-{
-  "connectionId": "unique-id",
-  "sseUrl": "https://your-worker.your-subdomain.workers.dev/sse/unique-id/connect",
-  "messageUrl": "https://your-worker.your-subdomain.workers.dev/sse/unique-id/message",
-  "sendUrl": "https://your-worker.your-subdomain.workers.dev/sse/unique-id/send"
-}
-```
-
-### Establishing an SSE Connection
-
-Connect to the SSE stream by making a GET request to the `sseUrl`:
-
-```
-GET /sse/{connectionId}/connect
-```
-
-### Sending Messages to the Server
-
-Send messages to the server by making a POST request to the `messageUrl`:
-
-```
-POST /sse/{connectionId}/message
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "method": "your-method",
-  "params": {},
-  "id": 1
-}
-```
-
-### Sending Messages from the Server to the Client
-
-Send messages from the server to the client by making a POST request to the `sendUrl`:
-
-```
-POST /sse/{connectionId}/send
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "method": "your-method",
-  "params": {},
-  "id": 1
-}
-```
-
-## Client Example
+### Client Example
 
 Here's an example of how to connect to the SSE stream from a client:
 
 ```javascript
-// Create a new SSE connection
-const response = await fetch('https://your-worker.your-subdomain.workers.dev/create-sse');
-const { sseUrl, messageUrl } = await response.json();
-
 // Connect to the SSE stream
-const eventSource = new EventSource(sseUrl);
+const eventSource = new EventSource('/sse');
 
 // Listen for messages
 eventSource.addEventListener('message', (event) => {
@@ -128,12 +126,21 @@ eventSource.addEventListener('message', (event) => {
 
 // Listen for the endpoint event
 eventSource.addEventListener('endpoint', (event) => {
-  console.log('Endpoint:', decodeURI(event.data));
+  const endpoint = decodeURI(event.data);
+  console.log('Endpoint:', endpoint);
+  
+  // Store the endpoint for sending messages
+  window.messageEndpoint = endpoint;
 });
 
 // Send a message to the server
 async function sendMessage(message) {
-  await fetch(messageUrl, {
+  if (!window.messageEndpoint) {
+    console.error('No endpoint available yet');
+    return;
+  }
+  
+  await fetch(window.messageEndpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -149,6 +156,33 @@ sendMessage({
   params: { name: 'World' },
   id: 1
 });
+```
+
+## Integration with MCP Server
+
+You can integrate the SSEServerTransport with the MCP Server:
+
+```typescript
+import { SSEServerTransport } from './sse';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+// Create a new SSE transport
+const transport = new SSEServerTransport('/mcp-message');
+
+// Create an MCP server
+const mcpServer = new McpServer({
+  name: 'Example MCP Server',
+  version: '1.0.0',
+});
+
+// Connect the transport to the MCP server
+mcpServer.connect(transport);
+
+// Start the SSE connection
+await transport.start();
+
+// Return the SSE response
+return transport.getResponse();
 ```
 
 ## License
