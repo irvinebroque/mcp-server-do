@@ -29,7 +29,7 @@ export default {
 		return mcpServer.messages(request);
 	  }
 
-	  return new Response('Welcome to the SSE API. Use /create-sse to create a new SSE connection.', {
+	  return new Response('Welcome to the SSE API. Use /sse to create a new SSE connection.', {
 		headers: {
 		  'Content-Type': 'text/plain'
 		}
