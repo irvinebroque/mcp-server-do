@@ -50,4 +50,6 @@ app.post("/messages", async (req, res) => {
 app.listen(3001);
 ```
 
-...and implemented the same thing in Durable Objects. But first needed a transport layer
+...and implemented the same thing in Durable Objects. But first needed a transport layer that worked on Workers.
+
+Following [`sse.ts` from `@modelcontextprotocol/typescript-sdk`](https://github.com/modelcontextprotocol/typescript-sdk/blob/main/src/server/sse.ts), I made one, trying to mirror the shape of the existing one. Some pretty fundamental assumptions baked into the SDK around its use of `node:http` that leak out beyond the SSE transport through its input types — but really the only meaningful interface change is that `handlePostMessage` takes a request and returns a response. Seems like there's probably a clever way somehow to upstream?
