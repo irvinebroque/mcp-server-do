@@ -24,6 +24,7 @@ export default {
 	  if (path.startsWith('/mcp-message')) {
 		const parts = path.split('/').filter(Boolean);
 		const connectionId = parts[1];
+		// TODO: handle session
 		const id = env.MCP_DO.idFromName(connectionId);
 		const mcpServer = env.MCP_DO.get(id);
 		return mcpServer.messages(request);
