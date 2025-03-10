@@ -14,7 +14,8 @@
 
 You should see:
 
-<image>
+<img width="853" alt="Screenshot 2025-03-09 at 5 21 24 PM" src="https://github.com/user-attachments/assets/04e0436c-a621-41a5-9809-4a3bd637a9f2" />
+
 
 ## Details
 
