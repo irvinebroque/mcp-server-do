@@ -15,7 +15,9 @@
 		"wrangler": "^3.114.0"
 	},
 	"dependencies": {
+		"@cloudflare/agents-repo": "github:cloudflare/agents",
 		"@modelcontextprotocol/sdk": "^1.6.1",
+		"agents-sdk": "^0.0.27",
 		"content-type": "^1.0.5"
 	}
 }

@@ -1,7 +1,7 @@
-export { MyMcpServerDurableObject } from './mcp-server-do';
+export { MyMcpServerAgent } from './my-mcp-server-agent';
 
 export interface Env {
-	MCP_DO: DurableObjectNamespace;
+	MCP_AGENTS: DurableObjectNamespace;
 }
 
 export default {
@@ -13,8 +13,8 @@ export default {
 		const parts = path.split('/').filter(Boolean);
 		const connectionId = parts[1];
 		
-		const id = env.MCP_DO.idFromName(connectionId);
-		const mcpServer = env.MCP_DO.get(id);
+		const id = env.MCP_AGENTS.idFromName(connectionId);
+		const mcpServer = env.MCP_AGENTS.get(id);
 		
 		// Forward the request to the Durable Object
 		return mcpServer.sse(request);
@@ -24,9 +24,9 @@ export default {
 	  if (path.startsWith('/mcp-message')) {
 		const parts = path.split('/').filter(Boolean);
 		const connectionId = parts[1];
-		const id = env.MCP_DO.idFromName(connectionId);
-		const mcpServer = env.MCP_DO.get(id);
-		return mcpServer.messages(request);
+		const id = env.MCP_AGENTS.idFromName(connectionId);
+		const mcpAgent = env.MCP_AGENTS.get(id);
+		return mcpAgent.messages(request);
 	  }
 
 	  return new Response('Welcome to the SSE API. Use /create-sse to create a new SSE connection.', {
