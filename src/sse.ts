@@ -43,6 +43,7 @@ export class SSEServerTransport implements Transport {
    * Use getResponse() to get the Response object for the client.
    */
   async start(): Promise<void> {
+		// TODO: deal withf
     // if (this._connected) {
     //   throw new Error(
     //     "SSEServerTransport already started! If using Server class, note that connect() calls start() automatically.",
