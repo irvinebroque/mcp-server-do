@@ -16,22 +16,24 @@ export class McpServerAgent extends Agent<Env> {
 
 	override async fetch(request: Request) {
         const url = new URL(request.url);
-		const sessionId = this.ctx.id.toString();
-
+        console.log('url', url.searchParams.get('sessionId'));
+        let sessionId = url.searchParams.get('sessionId');
+        if (!sessionId) {
+            throw new Error('Session ID not found');
+        }
+            
         if (!this.transport) {
             this.transport = new SSEEdgeTransport(`/message?${sessionId}`, sessionId);
         }
 
         if (request.method === 'GET' && url.pathname.endsWith('/sse')) {
             console.log('GET /sse');
-            console.log('sessionId', sessionId);
             await this.server.connect(this.transport);
             return this.transport.sseResponse;
         }
 
         if (request.method === 'POST' && url.pathname.endsWith('/message')) {
             console.log('POST /message');
-            console.log('sessionId', sessionId);
             const response = await this.transport.handlePostMessage(request);
             return response;
         }

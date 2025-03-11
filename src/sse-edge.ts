@@ -35,7 +35,6 @@ export class SSEEdgeTransport implements Transport {
 	}
 
 	async start(): Promise<void> {
-        console.log('start');
 		if (this.closed) {
 			throw new Error(
 				'SSE transport already closed! If using Server class, note that connect() calls start() automatically.',
@@ -57,7 +56,6 @@ export class SSEEdgeTransport implements Transport {
 		if (!this.stream) {
 			throw new Error('Stream not initialized');
 		}
-        console.log('sseResponse');
 
 		// Return a response with the SSE stream
 		return new Response(this.stream, {
@@ -73,7 +71,6 @@ export class SSEEdgeTransport implements Transport {
 	 * Handles incoming Requests
 	 */
 	async handlePostMessage(req: Request): Promise<Response> {
-        console.log('handlePostMessage');
 		if (this.closed || !this.controller) {
 			const message = 'SSE connection not established';
 			return new Response(message, { status: 500 });
@@ -105,7 +102,6 @@ export class SSEEdgeTransport implements Transport {
 	 * Handle a client message, regardless of how it arrived. This can be used to inform the server of messages that arrive via a means different than HTTP POST.
 	 */
 	async handleMessage(message: unknown): Promise<void> {
-        console.log('handleMessage');
 		let parsedMessage: JSONRPCMessage;
 		try {
 			parsedMessage = JSONRPCMessageSchema.parse(message);
@@ -127,7 +123,6 @@ export class SSEEdgeTransport implements Transport {
 	}
 
 	async send(message: JSONRPCMessage): Promise<void> {
-        console.log('send');
 		if (this.closed || !this.controller) {
 			throw new Error('Not connected');
 		}
