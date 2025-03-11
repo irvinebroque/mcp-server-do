@@ -21,6 +21,4 @@
 		"enabled": true,
 	},
 	"placement": { "mode": "smart" },
-	"assets": { "directory": "./public/", "binding": "ASSETS" },
-
 }

@@ -1,18 +1,10 @@
 import { Agent } from 'agents-sdk';
-import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { SSEServerTransport } from './sse';
-
-// Let's imagine that instead of a separate class from Agent
-// That there is just a way to enable MCP by defining class on your own agent class
-// mcp = true
-// version of your MCP server
-// etc.
-
-// For now – a separate class.
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { SSEEdgeTransport } from './sse-edge';
 
 export class McpServerAgent extends Agent<Env> {
 	server: McpServer;
-	transport: SSEServerTransport;
+	private transport: SSEEdgeTransport | undefined;
     
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
@@ -20,16 +12,29 @@ export class McpServerAgent extends Agent<Env> {
 			name: 'Demo',
 			version: '1.0.0',
 		});
-        this.transport = new SSEServerTransport('/messages');
 	}
 
-	async sse(request: Request): Promise<Response> {
-		await this.server.connect(this.transport);
-		await this.transport.start();
-		return this.transport.getResponse();
-	}
+	override async fetch(request: Request) {
+        const url = new URL(request.url);
+		const sessionId = this.ctx.id.toString();
 
-	async messages(request: Request): Promise<Response> {
-		return this.transport.handlePostMessage(request);
-	}
+        if (!this.transport) {
+            this.transport = new SSEEdgeTransport(`/message?${sessionId}`, sessionId);
+        }
+
+        if (request.method === 'GET' && url.pathname.endsWith('/sse')) {
+            console.log('sessionId', sessionId);
+            await this.server.connect(this.transport);
+            return this.transport.sseResponse;
+        }
+
+        if (request.method === 'POST' && url.pathname.endsWith('/message')) {
+            console.log('sessionId', sessionId);
+            const response = await this.transport.handlePostMessage(request);
+            console.log('response', response);
+            return response;
+        }
+
+        return new Response('Not found', { status: 404 });
+    }
 }

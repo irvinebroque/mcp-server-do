@@ -1,38 +1,26 @@
+import { MyMcpServerAgent } from './my-mcp-server-agent';
 export { MyMcpServerAgent } from './my-mcp-server-agent';
+import {
+	AgentNamespace,
+	routeAgentRequest,
+	getAgentByName
+  } from "agents-sdk";
 
 export interface Env {
-	MCP_AGENTS: DurableObjectNamespace;
+	MCP_AGENTS: AgentNamespace<MyMcpServerAgent>;
 }
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-	  const url = new URL(request.url);
-	  const path = url.pathname;
-	  
-	  if (path.startsWith('/sse')) {
-		const parts = path.split('/').filter(Boolean);
-		const connectionId = parts[1];
-		
-		const id = env.MCP_AGENTS.idFromName(connectionId);
-		const mcpServer = env.MCP_AGENTS.get(id);
-		
-		// Forward the request to the Durable Object
-		return mcpServer.sse(request);
-	  }
+		//return (await routeAgentRequest(request, env)) || Response.json({ msg: 'no agent here' }, { status: 404 });
 
-	  // /mcp-message/{connectionId}
-	  if (path.startsWith('/mcp-message')) {
-		const parts = path.split('/').filter(Boolean);
-		const connectionId = parts[1];
-		const id = env.MCP_AGENTS.idFromName(connectionId);
-		const mcpAgent = env.MCP_AGENTS.get(id);
-		return mcpAgent.messages(request);
-	  }
-
-	  return new Response('Welcome to the SSE API. Use /create-sse to create a new SSE connection.', {
-		headers: {
-		  'Content-Type': 'text/plain'
+		const url = new URL(request.url);
+		let sessionId = url.searchParams.get('sessionId');
+		if (!sessionId) {
+			sessionId = crypto.randomUUID();
 		}
-	  });
+
+		const mcpServerAgent = getAgentByName<Env, MyMcpServerAgent>(env.MCP_AGENTS, sessionId);
+		return (await mcpServerAgent).fetch(request);
 	},
   }; 

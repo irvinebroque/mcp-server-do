@@ -2,5 +2,4 @@
 
 interface Env {
 	MCP_AGENTS: DurableObjectNamespace<import("./src/index").MyMcpServerAgent>;
-	ASSETS: Fetcher;
 }
