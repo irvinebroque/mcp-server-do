@@ -4,7 +4,7 @@ import { SSEEdgeTransport } from './sse-edge';
 
 export class McpServerAgent extends Agent<Env> {
 	server: McpServer;
-	private transport: SSEEdgeTransport | undefined;
+	protected transport: SSEEdgeTransport | undefined;
     
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
@@ -23,15 +23,16 @@ export class McpServerAgent extends Agent<Env> {
         }
 
         if (request.method === 'GET' && url.pathname.endsWith('/sse')) {
+            console.log('GET /sse');
             console.log('sessionId', sessionId);
             await this.server.connect(this.transport);
             return this.transport.sseResponse;
         }
 
         if (request.method === 'POST' && url.pathname.endsWith('/message')) {
+            console.log('POST /message');
             console.log('sessionId', sessionId);
             const response = await this.transport.handlePostMessage(request);
-            console.log('response', response);
             return response;
         }
 

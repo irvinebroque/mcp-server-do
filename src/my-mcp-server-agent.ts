@@ -6,7 +6,8 @@ export class MyMcpServerAgent extends McpServerAgent {
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
 		
-		// Define the add tool with proper typing
+		// All of this gets replaced by RPC methods
+		// cloudflare/workers-mcp
 		this.server.tool('add', 'Add two numbers', async (extra: any) => {
 			const { a, b } = extra.params as { a: number, b: number };
 			return {
