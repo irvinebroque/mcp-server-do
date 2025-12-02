@@ -15,7 +15,7 @@
 		"wrangler": "^3.114.0"
 	},
 	"dependencies": {
-		"@modelcontextprotocol/sdk": "^1.6.1",
+		"@modelcontextprotocol/sdk": "^1.24.0",
 		"content-type": "^1.0.5"
 	}
 }
